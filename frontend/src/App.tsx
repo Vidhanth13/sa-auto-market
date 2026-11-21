@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "motion/react";
 import { curveNatural } from "@visx/curve";
-import { get, type Meta, type SalesVsFuel, type ManRow, type ManTrendRow, type ProvRow, type TrendRow } from "./lib/api.ts";
+import { loadDataset, type Dataset, rankManufacturers, manufacturerTrend, rankProvinces, provinceTrend } from "./lib/dataset.ts";
 import { SERIES, INK } from "./lib/palette.ts";
 import { AreaChart, Area, Grid, XAxis, ChartTooltip } from "@/charts";
 import ShimmerText from "@/components/kokonutui/shimmer-text";
@@ -146,55 +146,46 @@ function Background() {
 }
 
 export default function App() {
-  const [meta, setMeta] = useState<Meta>();
-  const [svf, setSvf] = useState<SalesVsFuel>();
+  const [ds, setDs] = useState<Dataset>();
   // manufacturer date range
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
-  const [man, setMan] = useState<ManRow[]>([]);
-  const [manTrend, setManTrend] = useState<ManTrendRow[]>([]);
   // provincial
   const [kind, setKind] = useState("new");
   const [vclass, setVclass] = useState("cars");
   const [pfrom, setPfrom] = useState("");
   const [pto, setPto] = useState("");
-  const [prov, setProv] = useState<ProvRow[]>([]);
   const [sel, setSel] = useState<string | null>("GP");
-  const [trend, setTrend] = useState<TrendRow[]>([]);
 
   useEffect(() => {
-    get<Meta>("/api/meta").then((m) => {
-      setMeta(m);
-      const months = m.salesMonths;
-      const start2026 = months.find((x) => x >= "2026-01") ?? months[0];
-      setFrom(start2026);
+    loadDataset().then((d) => {
+      setDs(d);
+      const months = d.meta.salesMonths;
+      setFrom(months.find((x) => x >= "2026-01") ?? months[0]);
       setTo(months[months.length - 1]);
-      const nm = m.natisMonths;
+      const nm = d.meta.natisMonths;
       setPfrom(nm.find((x) => x >= "2026-01") ?? nm[0]);
       setPto(nm[nm.length - 1]);
     });
-    get<SalesVsFuel>("/api/sales-vs-fuel").then(setSvf);
   }, []);
 
-  // ranking over the range
-  useEffect(() => {
-    if (from && to) get<ManRow[]>(`/api/manufacturers?limit=10&from=${from}&to=${to}`).then(setMan);
-  }, [from, to]);
+  const meta = ds?.meta;
+  const svf = ds?.salesVsFuel;
 
-  // trend lines for the top brands over the range
-  useEffect(() => {
-    if (!from || !to || man.length === 0) return;
-    const names = man.slice(0, 6).map((m) => m.name);
-    get<ManTrendRow[]>(`/api/manufacturers?from=${from}&to=${to}&names=${encodeURIComponent(names.join(","))}`)
-      .then(setManTrend);
-  }, [from, to, man]);
-
-  useEffect(() => {
-    if (pfrom && pto) get<ProvRow[]>(`/api/provinces?kind=${kind}&class=${vclass}&from=${pfrom}&to=${pto}`).then(setProv);
-  }, [kind, vclass, pfrom, pto]);
-  useEffect(() => {
-    if (sel) get<TrendRow[]>(`/api/provinces/trend?code=${sel}&kind=${kind}&class=${vclass}`).then(setTrend);
-  }, [sel, kind, vclass]);
+  // everything computed client-side from the baked dataset
+  const man = useMemo(
+    () => (ds && from && to ? rankManufacturers(ds, from, to, 10) : []),
+    [ds, from, to]);
+  const topBrands = useMemo(() => man.slice(0, 6).map((m) => m.name), [man]);
+  const manTrend = useMemo(
+    () => (ds && from && to && topBrands.length ? manufacturerTrend(ds, topBrands, from, to) : []),
+    [ds, from, to, topBrands]);
+  const prov = useMemo(
+    () => (ds && pfrom && pto ? rankProvinces(ds, kind, vclass, pfrom, pto, ds.meta.provinces) : []),
+    [ds, kind, vclass, pfrom, pto]);
+  const trend = useMemo(
+    () => (ds && sel ? provinceTrend(ds, sel, kind, vclass) : []),
+    [ds, sel, kind, vclass]);
 
   /* ---- derived ---- */
   const latest = svf?.series[svf.series.length - 1];
@@ -214,7 +205,6 @@ export default function App() {
   }, [svf]);
 
   // manufacturer trend matrix (0-filled so climbers rise from the baseline)
-  const topBrands = useMemo(() => man.slice(0, 6).map((m) => m.name), [man]);
   const manTrendData = useMemo(() => {
     if (manTrend.length === 0) return [];
     const months = [...new Set(manTrend.map((r) => r.period))].sort();
