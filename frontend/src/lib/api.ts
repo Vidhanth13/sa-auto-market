@@ -18,7 +18,8 @@ export type SalesVsFuel = {
   correlation: number;
   months: number;
 };
-export type ManRow = { name: string; units: number };
+export type ManRow = { name: string; units: number; months?: number };
+export type ManTrendRow = { period: string; name: string; units: number };
 export type ProvRow = { code: string; name: string; units: number; pct: number };
 export type TrendRow = { period: string; units: number };
 export type FuelRow = { period: string; petrol95: number };

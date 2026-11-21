@@ -6,3 +6,6 @@ venv/
 data/raw/
 tmp/
 node_modules/
+
+dist/
+*.stackdump

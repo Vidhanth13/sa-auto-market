@@ -1,14 +1,14 @@
 """
 NaTIS vehicle-registration ingest (provincial layer).
 
-Source: natis.gov.za monthly PDFs — New / Used vehicle registrations, each a
+Source: natis.gov.za monthly PDFs - New / Used vehicle registrations, each a
 province x vehicle-class matrix (9 provinces). The PDFs don't extract as clean
 tables (spaced-thousands, embedded numbers in class labels), so we parse by
 WORD X-POSITION: the header row fixes each province's column centre, and every
 data row's numeric words are bucketed into the nearest column.
 
 Each monthly file also contains the prior-year same month + a change table; we
-parse every real data table (skipping change tables) and upsert — duplicates
+parse every real data table (skipping change tables) and upsert - duplicates
 collapse on the unique key, and we get a little extra history for free.
 
 Usage:

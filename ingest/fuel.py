@@ -55,7 +55,7 @@ def scrape():
 def main():
     rows = scrape()
     if not rows:
-        print("no fuel rows parsed — page structure may have changed")
+        print("no fuel rows parsed - page structure may have changed")
         sys.exit(1)
     conn = db_conn()
     try:

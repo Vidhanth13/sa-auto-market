@@ -49,28 +49,54 @@ app.get("/api/segments", wrap(async (req, res) => {
   res.json(rows);
 }));
 
-// ---- manufacturers: ranking for a month, or trend for named brands ----
+// ---- manufacturers: ranking (single month OR date range), or trend for named brands ----
+const monthDate = (m?: string | null) => (m ? `${m}-01` : null);
+
 app.get("/api/manufacturers", wrap(async (req, res) => {
   const group = (req.query.group as string) ?? "Total";
+  const from = monthDate(req.query.from as string);
+  const to = monthDate(req.query.to as string);
+
+  // trend lines for named brands, optionally clamped to a date range
   if (req.query.names) {
     const names = (req.query.names as string).split(",").map((s) => s.trim());
     const rows = await q(
       `SELECT to_char(s.period,'YYYY-MM') period, m.name, s.units
          FROM sales_manufacturer s JOIN manufacturer m ON m.id=s.manufacturer_id
         WHERE s.veh_group=$1 AND s.channel='local' AND m.name = ANY($2)
-        ORDER BY s.period`, [group, names]);
+          AND ($3::date IS NULL OR s.period >= $3)
+          AND ($4::date IS NULL OR s.period <= $4)
+        ORDER BY s.period`, [group, names, from, to]);
     res.json(rows);
     return;
   }
-  const month = (req.query.month as string) ?? null;
+
   const limit = Number(req.query.limit ?? 15);
+
+  // date-range ranking: total units each brand ADDED across the window
+  if (from || to) {
+    const rows = await q(
+      `SELECT m.name, SUM(s.units)::int units, COUNT(*)::int months
+         FROM sales_manufacturer s JOIN manufacturer m ON m.id=s.manufacturer_id
+        WHERE s.veh_group=$1 AND s.channel='local'
+          AND ($2::date IS NULL OR s.period >= $2)
+          AND ($3::date IS NULL OR s.period <= $3)
+        GROUP BY m.name
+        ORDER BY units DESC NULLS LAST LIMIT $4`,
+      [group, from, to, limit]);
+    res.json(rows);
+    return;
+  }
+
+  // single-month ranking (default: latest month)
+  const month = monthDate(req.query.month as string);
   const rows = await q(
     `SELECT m.name, s.units
        FROM sales_manufacturer s JOIN manufacturer m ON m.id=s.manufacturer_id
       WHERE s.veh_group=$1 AND s.channel='local'
         AND s.period = COALESCE($2::date, (SELECT max(period) FROM sales_manufacturer))
       ORDER BY s.units DESC NULLS LAST LIMIT $3`,
-    [group, month ? `${month}-01` : null, limit]);
+    [group, month, limit]);
   res.json(rows);
 }));
 

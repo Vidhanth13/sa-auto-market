@@ -1,5 +1,5 @@
 """
-pdfkit — a small, reusable toolkit for ingesting tabular data out of PDFs.
+pdfkit - a small, reusable toolkit for ingesting tabular data out of PDFs.
 
 This is the GENERIC layer. It knows nothing about any specific report. A
 source-specific ingest (e.g. naamsa.py) imports these helpers and supplies
@@ -16,7 +16,7 @@ Design notes:
     - Government / industry PDFs often block naive clients: we send a browser
       User-Agent and verify the %PDF magic so an HTML error page can't sneak
       through as if it were data.
-    - Numbers in SA/EU reports use spaces as thousand separators and "-" / "—"
+    - Numbers in SA/EU reports use spaces as thousand separators and "-" / "-"
       for null; parse_int handles both, plus NBSP and negatives.
 """
 from __future__ import annotations
@@ -85,11 +85,11 @@ def find_tables(tables, must_contain: str, scan_rows: int = 3):
 
 
 def parse_int(cell):
-    """Turn a report cell into int or None. Handles '13 750', NBSP, '-', '—', negatives."""
+    """Turn a report cell into int or None. Handles '13 750', NBSP, '-', '-', negatives."""
     if cell is None:
         return None
     s = str(cell).strip().replace("\xa0", "").replace(" ", "")
-    if s in ("", "-", "—", "*"):
+    if s in ("", "-", "-", "*"):
         return None
     neg = s.startswith("-")
     s = s.lstrip("-")

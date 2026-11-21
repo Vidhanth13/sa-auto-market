@@ -19,8 +19,8 @@ export function ProvinceMap({ rows, selected, onSelect }:
           const isSel = selected === p.code;
           return (
             <path key={p.code} d={p.d}
-              fill={row ? blueScale(t) : "#222"}
-              stroke={isSel ? "#f0efec" : INK.axis}
+              fill={row ? blueScale(t) : "rgba(255,255,255,0.05)"}
+              stroke={isSel ? "#b6ff00" : "rgba(255,255,255,0.18)"}
               strokeWidth={isSel ? 2.5 : 1}
               className="cursor-pointer transition-[fill] duration-150"
               onMouseEnter={() => setHover(row ?? null)}
@@ -37,10 +37,9 @@ export function ProvinceMap({ rows, selected, onSelect }:
         ))}
       </svg>
       {hover && (
-        <div className="absolute top-2 left-2 card px-3 py-2 text-xs pointer-events-none"
-             style={{ borderColor: "rgba(255,255,255,.14)" }}>
-          <div className="font-semibold">{hover.name}</div>
-          <div className="tnum" style={{ color: INK.secondary }}>
+        <div className="absolute top-2 left-2 rounded-lg border border-white/10 bg-[#17171b]/90 backdrop-blur-sm px-3 py-2 text-xs pointer-events-none">
+          <div className="font-semibold text-white">{hover.name}</div>
+          <div className="tabular-nums" style={{ color: INK.secondary }}>
             {hover.units.toLocaleString("en-ZA")} · {hover.pct}%
           </div>
         </div>

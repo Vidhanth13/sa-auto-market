@@ -1,5 +1,5 @@
 """
-naamsa backfill — discover historical flash-report PDFs and ingest them.
+naamsa backfill - discover historical flash-report PDFs and ingest them.
 
 naamsa's filenames are inconsistent, so we don't guess blindly: for each month
 we probe a small set of known naming conventions against the expected upload
