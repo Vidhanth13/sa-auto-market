@@ -159,3 +159,14 @@
 
 html, body, #root { min-height: 100%; }
 body { background: #08090a; }
+
+/* dark dropdowns — native select/option default to light grey on Windows */
+select {
+  background-color: #0c0d10;
+  color: #e4e4e7;
+  color-scheme: dark;
+}
+select option {
+  background-color: #0c0d10;
+  color: #e4e4e7;
+}

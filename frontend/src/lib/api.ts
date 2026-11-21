@@ -8,6 +8,7 @@ export async function get<T>(path: string): Promise<T> {
 
 export type Meta = {
   salesMonths: string[];
+  natisMonths: string[];
   manufacturers: string[];
   provinces: { code: string; name: string }[];
   natisRange: { kind: string; f: string; t: string }[];

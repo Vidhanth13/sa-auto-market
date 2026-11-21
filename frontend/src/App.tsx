@@ -156,6 +156,8 @@ export default function App() {
   // provincial
   const [kind, setKind] = useState("new");
   const [vclass, setVclass] = useState("cars");
+  const [pfrom, setPfrom] = useState("");
+  const [pto, setPto] = useState("");
   const [prov, setProv] = useState<ProvRow[]>([]);
   const [sel, setSel] = useState<string | null>("GP");
   const [trend, setTrend] = useState<TrendRow[]>([]);
@@ -167,6 +169,9 @@ export default function App() {
       const start2026 = months.find((x) => x >= "2026-01") ?? months[0];
       setFrom(start2026);
       setTo(months[months.length - 1]);
+      const nm = m.natisMonths;
+      setPfrom(nm.find((x) => x >= "2026-01") ?? nm[0]);
+      setPto(nm[nm.length - 1]);
     });
     get<SalesVsFuel>("/api/sales-vs-fuel").then(setSvf);
   }, []);
@@ -185,8 +190,8 @@ export default function App() {
   }, [from, to, man]);
 
   useEffect(() => {
-    get<ProvRow[]>(`/api/provinces?kind=${kind}&class=${vclass}`).then(setProv);
-  }, [kind, vclass]);
+    if (pfrom && pto) get<ProvRow[]>(`/api/provinces?kind=${kind}&class=${vclass}&from=${pfrom}&to=${pto}`).then(setProv);
+  }, [kind, vclass, pfrom, pto]);
   useEffect(() => {
     if (sel) get<TrendRow[]>(`/api/provinces/trend?code=${sel}&kind=${kind}&class=${vclass}`).then(setTrend);
   }, [sel, kind, vclass]);
@@ -226,7 +231,9 @@ export default function App() {
     [trend]);
 
   const monthOpts = (meta?.salesMonths ?? []).map((m) => ({ v: m, l: monthLabel(m) }));
+  const natisMonthOpts = (meta?.natisMonths ?? []).map((m) => ({ v: m, l: monthLabel(m) }));
   const rangeMonths = man[0]?.months;
+  const provTotal = prov.reduce((a, p) => a + p.units, 0);
 
   return (
     <div className="relative min-h-svh w-full overflow-x-hidden text-zinc-200">
@@ -245,9 +252,15 @@ export default function App() {
               className="!text-4xl sm:!text-6xl !font-extrabold !tracking-tight text-left" />
           </Reveal>
           <Reveal delay={0.1}>
-            <p className="mt-3 max-w-xl text-sm text-zinc-400 sm:text-base">
-              New vehicle sales, fuel prices and provincial registrations, ingested from source PDFs into PostgreSQL and served through a Node API.
-            </p>
+            <div className="mt-4 max-w-2xl rounded-xl border border-white/[0.07] bg-white/[0.02] p-4 text-sm leading-relaxed text-zinc-400">
+              <span className="font-semibold text-zinc-200">For the Pinewood AI team.</span>{" "}
+              A small end-to-end project I built to show how I move data from A to B. Python pulls South African
+              vehicle data straight from naamsa, DMRE and NaTIS source PDFs, loads it into PostgreSQL, a Node and
+              TypeScript API serves it, and this React dashboard reads it. It turns scattered government and industry
+              documents into one live view of the local car market: new vehicle sales against fuel prices,
+              brand by brand trends, and registrations across all nine provinces. The point is a clean, queryable
+              pipeline and a product people can actually read, the same shape of work a dealer management platform runs on.
+            </div>
           </Reveal>
         </header>
 
@@ -278,6 +291,13 @@ export default function App() {
                 </AreaChart>
               )}
               <Legend items={[{ c: SERIES[0], l: "Passenger sales" }, { c: SERIES[1], l: "Petrol 95" }]} />
+              <p className="mt-4 border-t border-white/[0.06] pt-3 text-xs leading-relaxed text-zinc-400">
+                <span className="font-semibold text-zinc-300">What this shows: </span>
+                passenger sales have climbed well ahead of the fuel price, so growth is not being driven by cheaper petrol.
+                Through the April and May fuel spike both lines rose together, sales kept going even as fuel jumped,
+                which is why the correlation stays weak. The open question is the lagged effect: whether that higher
+                fuel price eventually drags on vehicle sales. That is the data we are still waiting on.
+              </p>
             </Panel>
           </Reveal>
 
@@ -290,26 +310,26 @@ export default function App() {
                   <Select label="From" value={from} onChange={setFrom} options={monthOpts} />
                   <Select label="To" value={to} onChange={setTo} options={monthOpts} />
                 </div>}>
-              <div className="grid gap-6 lg:grid-cols-5">
-                <div className="lg:col-span-2">
-                  <RankBars data={man.map((m) => ({ label: m.name, value: m.units }))} color={SERIES[0]} />
-                </div>
-                <div className="lg:col-span-3">
-                  <div className="mb-2 text-[11px] text-zinc-500">Monthly sales trend · top 6 brands</div>
-                  {manTrendData.length > 0 && (
-                    <AreaChart data={manTrendData} animationDuration={1000} className="h-[300px] w-full">
-                      <Grid horizontal />
-                      {topBrands.map((b, i) => (
-                        <Area key={b} dataKey={b} curve={curveNatural}
-                          stroke={SERIES[i % SERIES.length]} fill={SERIES[i % SERIES.length]}
-                          strokeWidth={2} fillOpacity={0.05} />
-                      ))}
-                      <XAxis />
-                      <ChartTooltip />
-                    </AreaChart>
-                  )}
-                  <Legend items={topBrands.map((b, i) => ({ c: SERIES[i % SERIES.length], l: b }))} />
-                </div>
+              {/* ranking bars — own section on top */}
+              <div className="mb-2 text-[11px] text-zinc-500">Units added over the window · ranked</div>
+              <RankBars data={man.map((m) => ({ label: m.name, value: m.units }))} color={SERIES[0]} />
+
+              {/* trend graph — full width below */}
+              <div className="mt-7 border-t border-white/[0.06] pt-5">
+                <div className="mb-2 text-[11px] text-zinc-500">Monthly sales trend · top 6 brands</div>
+                {manTrendData.length > 0 && (
+                  <AreaChart data={manTrendData} animationDuration={1000} className="h-[320px] w-full">
+                    <Grid horizontal />
+                    {topBrands.map((b, i) => (
+                      <Area key={b} dataKey={b} curve={curveNatural}
+                        stroke={SERIES[i % SERIES.length]} fill={SERIES[i % SERIES.length]}
+                        strokeWidth={2} fillOpacity={0.04} />
+                    ))}
+                    <XAxis />
+                    <ChartTooltip />
+                  </AreaChart>
+                )}
+                <Legend items={topBrands.map((b, i) => ({ c: SERIES[i % SERIES.length], l: b }))} />
               </div>
             </Panel>
           </Reveal>
@@ -317,11 +337,13 @@ export default function App() {
           {/* provincial registrations */}
           <Reveal>
             <Panel title="Provincial registrations"
-              note={`NaTIS · latest data · ${CLASS_LABEL[vclass]} · tap a province`}
+              note={`NaTIS · ${kind} · ${CLASS_LABEL[vclass]} · ${fmt(provTotal)} total over the window · tap a province`}
               right={
                 <div className="flex flex-wrap items-center gap-2">
                   <Segmented value={kind} onChange={setKind} options={[{ v: "new", l: "New" }, { v: "used", l: "Used" }]} />
                   <Select value={vclass} onChange={setVclass} options={Object.entries(CLASS_LABEL).map(([v, l]) => ({ v, l }))} />
+                  <Select label="From" value={pfrom} onChange={setPfrom} options={natisMonthOpts} />
+                  <Select label="To" value={pto} onChange={setPto} options={natisMonthOpts} />
                 </div>}>
               <div className="grid gap-6 md:grid-cols-2">
                 <ProvinceMap rows={prov} selected={sel} onSelect={setSel} />

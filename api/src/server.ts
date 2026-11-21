@@ -21,7 +21,7 @@ app.get("/health", wrap(async (_req, res) => {
 
 // ---- meta: dropdown fodder ----
 app.get("/api/meta", wrap(async (_req, res) => {
-  const [months, manufacturers, provinces, natis] = await Promise.all([
+  const [months, manufacturers, provinces, natis, natisMonths] = await Promise.all([
     q("SELECT to_char(period,'YYYY-MM') m FROM naamsa_report ORDER BY period"),
     q(`SELECT m.name, SUM(s.units) total
          FROM sales_manufacturer s JOIN manufacturer m ON m.id=s.manufacturer_id
@@ -30,9 +30,11 @@ app.get("/api/meta", wrap(async (_req, res) => {
     q("SELECT code, name FROM province ORDER BY name"),
     q(`SELECT kind, to_char(min(period),'YYYY-MM') f, to_char(max(period),'YYYY-MM') t
          FROM natis_registration GROUP BY kind`),
+    q("SELECT DISTINCT to_char(period,'YYYY-MM') m FROM natis_registration ORDER BY m"),
   ]);
   res.json({
     salesMonths: months.map((r: any) => r.m),
+    natisMonths: natisMonths.map((r: any) => r.m),
     manufacturers: manufacturers.map((r: any) => r.name),
     provinces,
     natisRange: natis,
@@ -121,11 +123,30 @@ app.get("/api/sales-vs-fuel", wrap(async (_req, res) => {
   res.json({ series, correlation: r, months: n });
 }));
 
-// ---- provincial map: one month, one class ----
+// ---- provincial map: date range (summed) or single/latest month ----
 app.get("/api/provinces", wrap(async (req, res) => {
   const kind = (req.query.kind as string) ?? "new";
   const cls = (req.query.class as string) ?? "cars";
-  const month = (req.query.month as string) ?? null;
+  const from = monthDate(req.query.from as string);
+  const to = monthDate(req.query.to as string);
+
+  // summed over a window
+  if (from || to) {
+    const rows = await q(
+      `SELECT r.province_code code, p.name, SUM(r.units)::int units,
+              round(100.0*SUM(r.units)/NULLIF(SUM(SUM(r.units)) OVER (),0),1) pct
+         FROM natis_registration r JOIN province p ON p.code=r.province_code
+        WHERE r.kind=$1 AND r.veh_class=$2
+          AND ($3::date IS NULL OR r.period >= $3)
+          AND ($4::date IS NULL OR r.period <= $4)
+        GROUP BY r.province_code, p.name
+        ORDER BY units DESC`,
+      [kind, cls, from, to]);
+    res.json(rows);
+    return;
+  }
+
+  const month = monthDate(req.query.month as string);
   const rows = await q(
     `SELECT r.province_code code, p.name, r.units,
             round(100.0*r.units/NULLIF(SUM(r.units) OVER (),0),1) pct
@@ -134,7 +155,7 @@ app.get("/api/provinces", wrap(async (req, res) => {
         AND r.period = COALESCE($3::date,
             (SELECT max(period) FROM natis_registration WHERE kind=$1))
       ORDER BY r.units DESC`,
-    [kind, cls, month ? `${month}-01` : null]);
+    [kind, cls, month]);
   res.json(rows);
 }));
 
