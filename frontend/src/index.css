@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+:root { color-scheme: dark; }
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  background:
+    radial-gradient(1000px 540px at 82% -8%, rgba(57,135,229,.12), transparent 60%),
+    #0d0d0d;
+  color: #f0efec;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+.tnum { font-variant-numeric: tabular-nums; }
+.card { background:#1a1a19; border:1px solid rgba(255,255,255,.08); border-radius:16px; }
