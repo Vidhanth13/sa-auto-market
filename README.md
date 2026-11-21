@@ -6,7 +6,14 @@
 
 `Python ingest` · `PostgreSQL` · `Node / TypeScript API` · `React + Vite dashboard`
 
+### [Live demo -> vidhanth13.github.io/sa-auto-market](https://vidhanth13.github.io/sa-auto-market/)
+
 ![dashboard](docs/dashboard.png)
+
+<sub>The live demo is a static build: the pipeline bakes the dataset into a JSON bundle that
+the dashboard filters in the browser, so it runs with no backend. The full Python ingest,
+PostgreSQL schema and Node API that produce and serve that data all live in this repo and
+run locally, see below.</sub>
 
 </div>
 
